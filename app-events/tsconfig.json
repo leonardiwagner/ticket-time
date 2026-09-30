@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": ".",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "*.test.ts",
+    "event-generator.ts",
+    "grpc/**/*.ts",
+    "logging/**/*.ts",
+    "main.ts",
+    "models/**/*.ts",
+    "repository/**/*.ts"
+  ]
+}
