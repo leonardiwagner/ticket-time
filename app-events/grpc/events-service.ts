@@ -19,7 +19,27 @@ export interface EventCatalog {
 }
 
 interface ListConfirmedEventsResponse {
-  events: readonly Event[];
+  events: readonly PublishedEvent[];
+}
+
+interface PublishedEvent {
+  id: string;
+  name: string;
+  description?: string;
+  venueId: string;
+  startsAt: string;
+  endsAt: string;
+}
+
+function publishEvent(event: Event): PublishedEvent {
+  return {
+    id: event.id,
+    name: event.name,
+    description: event.description,
+    venueId: event.venue.id,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+  };
 }
 
 interface ReserveEventRequest {
@@ -47,7 +67,7 @@ export function createEventsService(
       try {
         const events = await catalog.listConfirmedEvents();
         requestLogger.info({ eventCount: events.length }, "confirmed events listed");
-        callback(null, { events });
+        callback(null, { events: events.map(publishEvent) });
       } catch (error) {
         requestLogger.error({ err: error }, "failed to list confirmed events");
         callback({ code: status.INTERNAL, message: "Unable to list confirmed events" });
