@@ -1,93 +1,16 @@
-import type {
-  sendUnaryData,
-  ServerUnaryCall,
-  UntypedServiceImplementation,
-} from "@grpc/grpc-js";
+import type { sendUnaryData, ServerUnaryCall, UntypedServiceImplementation } from "@grpc/grpc-js";
 import { status } from "@grpc/grpc-js";
 import type { Event } from "../models/event.js";
 import { createLogger, requestIdFromMetadata } from "../logging/logger.js";
 import type { Logger } from "pino";
 
-export interface EventReservation {
-  reservationId: string;
-  eventId: string;
-}
-
-export interface EventCatalog {
-  listConfirmedEvents(): Promise<readonly Event[]>;
-  reserveEvent(eventId: string, requestId: string): Promise<EventReservation>;
-}
-
-interface ListConfirmedEventsResponse {
-  events: readonly PublishedEvent[];
-}
-
-interface PublishedEvent {
-  id: string;
-  name: string;
-  description?: string;
-  venueId: string;
-  startsAt: string;
-  endsAt: string;
-}
-
-function publishEvent(event: Event): PublishedEvent {
+export interface TicketClaim { ticketId: string; eventId: string; status: "available" | "held" | "sold" | "released"; }
+export interface EventCatalog { listConfirmedEvents(): Promise<readonly Event[]>; claimTicket(eventId: string, bookingRequestId: string): Promise<TicketClaim>; }
+interface ClaimTicketRequest { eventId: string; bookingRequestId: string; }
+function grpcError(error: unknown) { const code = error instanceof Error ? error.message : ""; if (code === "EVENT_NOT_FOUND") return status.NOT_FOUND; if (code === "EVENT_NOT_SELLABLE") return status.FAILED_PRECONDITION; if (code === "SOLD_OUT") return status.RESOURCE_EXHAUSTED; return status.UNAVAILABLE; }
+export function createEventsService(catalog: EventCatalog, logger: Logger = createLogger({ service: "app-events" })): UntypedServiceImplementation {
   return {
-    id: event.id,
-    name: event.name,
-    description: event.description,
-    venueId: event.venue.id,
-    startsAt: event.startsAt,
-    endsAt: event.endsAt,
-  };
-}
-
-interface ReserveEventRequest {
-  eventId: string;
-  requestId: string;
-}
-
-interface ReserveEventResponse {
-  reservationId: string;
-  eventId: string;
-}
-
-export function createEventsService(
-  catalog: EventCatalog,
-  logger: Logger = createLogger({ service: "app-events" }),
-): UntypedServiceImplementation {
-  return {
-    listConfirmedEvents: async (
-      call: ServerUnaryCall<unknown, unknown>,
-      callback: sendUnaryData<ListConfirmedEventsResponse>,
-    ) => {
-      const requestId = requestIdFromMetadata(call.metadata);
-      const requestLogger = logger.child({ requestId, operation: "listConfirmedEvents" });
-      requestLogger.info("gRPC request started");
-      try {
-        const events = await catalog.listConfirmedEvents();
-        requestLogger.info({ eventCount: events.length }, "confirmed events listed");
-        callback(null, { events: events.map(publishEvent) });
-      } catch (error) {
-        requestLogger.error({ err: error }, "failed to list confirmed events");
-        callback({ code: status.INTERNAL, message: "Unable to list confirmed events" });
-      }
-    },
-    reserveEvent: async (
-      call: ServerUnaryCall<ReserveEventRequest, unknown>,
-      callback: sendUnaryData<ReserveEventResponse>,
-    ) => {
-      const requestId = requestIdFromMetadata(call.metadata);
-      const requestLogger = logger.child({ requestId, operation: "reserveEvent" });
-      requestLogger.info({ eventId: call.request.eventId }, "gRPC request started");
-      try {
-        const reservation = await catalog.reserveEvent(call.request.eventId, call.request.requestId);
-        requestLogger.info({ eventId: reservation.eventId }, "event reserved");
-        callback(null, reservation);
-      } catch (error) {
-        requestLogger.error({ err: error, eventId: call.request.eventId }, "failed to reserve event");
-        callback({ code: status.ABORTED, message: "Unable to reserve event" });
-      }
-    },
+    listConfirmedEvents: async (call: ServerUnaryCall<unknown, unknown>, callback: sendUnaryData<{ events: unknown[] }>) => { const requestLogger = logger.child({ requestId: requestIdFromMetadata(call.metadata), operation: "listConfirmedEvents" }); try { const events = await catalog.listConfirmedEvents(); callback(null, { events: events.map((event) => ({ id: event.id, name: event.name, description: event.description, venueId: event.venue.id, startsAt: event.startsAt, endsAt: event.endsAt })) }); } catch (error) { requestLogger.error({ err: error }, "failed to list confirmed events"); callback({ code: status.UNAVAILABLE, message: "Unable to list confirmed events" }); } },
+    claimTicket: async (call: ServerUnaryCall<ClaimTicketRequest, unknown>, callback: sendUnaryData<TicketClaim>) => { const requestLogger = logger.child({ requestId: requestIdFromMetadata(call.metadata), operation: "claimTicket", eventId: call.request.eventId }); try { const claim = await catalog.claimTicket(call.request.eventId, call.request.bookingRequestId); requestLogger.info({ ticketId: claim.ticketId }, "ticket claimed"); callback(null, claim); } catch (error) { requestLogger.warn({ err: error }, "ticket claim rejected"); callback({ code: grpcError(error), message: "Unable to claim ticket" }); } },
   };
 }

@@ -1,34 +1,8 @@
 syntax = "proto3";
-
 package tickettime.events.v1;
-
-service EventsService {
-  rpc ListConfirmedEvents(ListConfirmedEventsRequest)
-      returns (ListConfirmedEventsResponse);
-  rpc ReserveEvent(ReserveEventRequest) returns (ReserveEventResponse);
-}
-
+service EventsService { rpc ListConfirmedEvents(ListConfirmedEventsRequest) returns (ListConfirmedEventsResponse); rpc ClaimTicket(ClaimTicketRequest) returns (ClaimTicketResponse); }
 message ListConfirmedEventsRequest {}
-
-message ListConfirmedEventsResponse {
-  repeated Event events = 1;
-}
-
-message Event {
-  string id = 1;
-  string name = 2;
-  string description = 3;
-  string venue_id = 4;
-  string starts_at = 5;
-  string ends_at = 6;
-}
-
-message ReserveEventRequest {
-  string event_id = 1;
-  string request_id = 2;
-}
-
-message ReserveEventResponse {
-  string reservation_id = 1;
-  string event_id = 2;
-}
+message ListConfirmedEventsResponse { repeated Event events = 1; }
+message Event { string id = 1; string name = 2; string description = 3; string venue_id = 4; string starts_at = 5; string ends_at = 6; }
+message ClaimTicketRequest { string event_id = 1; string booking_request_id = 2; }
+message ClaimTicketResponse { string ticket_id = 1; string event_id = 2; string status = 3; }

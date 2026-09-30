@@ -9,6 +9,7 @@ import type { Logger } from "pino";
 import type { Ticket } from "../models/ticket.js";
 import type { EventsGateway } from "./events-client.js";
 import { createLogger, requestIdFromMetadata } from "../logging/logger.js";
+import { purchaseTicket } from "../ticket-purchase.js";
 
 const bookEventRequestSchema = z.object({
   customerId: z.uuid(),
@@ -17,7 +18,7 @@ const bookEventRequestSchema = z.object({
 });
 
 export interface TicketStore {
-  createTicket(input: Ticket & { reservationId: string }): Promise<Ticket>;
+  createTicket(input: Ticket & { ticketId: string }): Promise<Ticket>;
 }
 
 interface BookEventRequest {
@@ -51,18 +52,7 @@ export function createBookingsService(
 
       requestLogger.info({ eventId: request.data.eventId }, "gRPC request started");
       try {
-        const reservation = await events.reserveEvent(
-          request.data.eventId,
-          request.data.requestId,
-          requestId,
-        );
-        const ticket = await tickets.createTicket({
-          id: crypto.randomUUID(),
-          eventId: reservation.eventId,
-          customerId: request.data.customerId,
-          status: "confirmed",
-          reservationId: reservation.reservationId,
-        });
+        const ticket = await purchaseTicket({ ...request.data, correlationId: requestId }, events, tickets);
         requestLogger.info({ eventId: ticket.eventId, ticketId: ticket.id }, "event booked");
         callback(null, { ticket });
       } catch (error) {
