@@ -9,5 +9,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["*.test.ts", "catalog-projection.ts", "kafka-catalog-consumer.ts", "health.ts", "main.ts", "read-events.ts", "grpc/**/*.ts", "logging/**/*.ts", "models/**/*.ts"]
+  "include": ["*.test.ts", "catalog-projection.ts", "customer-data.ts", "kafka-catalog-consumer.ts", "health.ts", "main.ts", "read-events.ts", "startup-purchase.ts", "ticket-purchase.ts", "grpc/**/*.ts", "logging/**/*.ts", "models/**/*.ts"]
 }

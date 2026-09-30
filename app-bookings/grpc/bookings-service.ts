@@ -9,6 +9,7 @@ import type { Logger } from "pino";
 import type { Ticket } from "../models/ticket.js";
 import type { EventsGateway } from "./events-client.js";
 import { createLogger, requestIdFromMetadata } from "../logging/logger.js";
+import { purchaseTicket } from "../ticket-purchase.js";
 
 const bookEventRequestSchema = z.object({
   customerId: z.uuid(),
@@ -51,18 +52,7 @@ export function createBookingsService(
 
       requestLogger.info({ eventId: request.data.eventId }, "gRPC request started");
       try {
-        const claim = await events.claimTicket(
-          request.data.eventId,
-          request.data.requestId,
-          requestId,
-        );
-        const ticket = await tickets.createTicket({
-          id: claim.ticketId,
-          eventId: claim.eventId,
-          customerId: request.data.customerId,
-          status: "confirmed",
-          ticketId: claim.ticketId,
-        });
+        const ticket = await purchaseTicket({ ...request.data, correlationId: requestId }, events, tickets);
         requestLogger.info({ eventId: ticket.eventId, ticketId: ticket.id }, "event booked");
         callback(null, { ticket });
       } catch (error) {

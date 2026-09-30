@@ -1,5 +1,6 @@
 import * as grpc from "@grpc/grpc-js";
 import { createCatalogProjection } from "./catalog-projection.js";
+import { loadCustomers } from "./customer-data.js";
 import { createBookingsServer } from "./grpc/bookings-server.js";
 import { createEventsGateway } from "./grpc/events-client.js";
 import { createHealthServer } from "./health.js";
@@ -7,6 +8,7 @@ import { createKafkaCatalogConsumer } from "./kafka-catalog-consumer.js";
 import { createLogger } from "./logging/logger.js";
 import type { Ticket } from "./models/ticket.js";
 import { readAndLogConfirmedEvents } from "./read-events.js";
+import { purchaseRandomStartupTicket } from "./startup-purchase.js";
 
 const logger = createLogger({ service: "app-bookings" });
 const eventsAddress = process.env.EVENTS_GRPC_ADDRESS ?? "127.0.0.1:50051";
@@ -25,6 +27,7 @@ const ticketStore = {
 };
 const bookingsServer = createBookingsServer(events, ticketStore, logger);
 const projection = createCatalogProjection();
+const customers = loadCustomers();
 const catalogConsumer = kafkaBrokers
   ? createKafkaCatalogConsumer(kafkaBrokers, projection, logger)
   : undefined;
@@ -59,9 +62,21 @@ const initializeCatalog = async () => {
   await waitForEvents();
 };
 
+const waitForCatalogEvents = async () => {
+  for (let attempt = 1; attempt <= 10; attempt += 1) {
+    if (projection.events().some((event) => event.availableTicketCount > 0)) return;
+    logger.info({ attempt }, "waiting for available events from Kafka");
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+};
+
 const start = async () => {
   await bind();
   await initializeCatalog();
+  if (catalogConsumer) {
+    await waitForCatalogEvents();
+    await purchaseRandomStartupTicket(customers, projection.events(), events, ticketStore, logger);
+  }
   ready = true;
   logger.info({ address: bookingsAddress, healthPort, eventsAddress }, "app-bookings started");
 };
