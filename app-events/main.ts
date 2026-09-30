@@ -1,5 +1,6 @@
 import * as grpc from "@grpc/grpc-js";
 import { createEventGenerator } from "./event-generator.js";
+import { loadArtists, loadVenues } from "./event-data.js";
 import { createInMemoryEventRepository } from "./repository/index.js";
 import { createLogger } from "./logging/logger.js";
 import { createEventsServer } from "./grpc/events-server.js";
@@ -11,7 +12,7 @@ const healthPort = Number(process.env.HEALTH_PORT ?? 8081);
 
 const logger = createLogger({ service: "app-events" });
 const eventRepository = createInMemoryEventRepository();
-const eventGenerator = createEventGenerator(eventRepository);
+const eventGenerator = createEventGenerator(eventRepository, loadArtists(), loadVenues());
 const eventsServer = createEventsServer(createEventCatalog(eventRepository), logger);
 const healthServer = createHealthServer(healthPort, () => true);
 
