@@ -1,0 +1,44 @@
+services:
+  app-events:
+    build:
+      context: .
+      dockerfile: app-events/Dockerfile
+    environment:
+      EVENTS_GRPC_ADDRESS: 0.0.0.0:50051
+      HEALTH_PORT: 8081
+      HEALTH_HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_PRETTY: ${LOG_PRETTY:-false}
+    ports:
+      - "50051:50051"
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8081/health/ready', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  app-bookings:
+    build:
+      context: .
+      dockerfile: app-bookings/Dockerfile
+    environment:
+      EVENTS_GRPC_ADDRESS: app-events:50051
+      BOOKINGS_GRPC_ADDRESS: 0.0.0.0:50052
+      HEALTH_PORT: 8082
+      HEALTH_HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_PRETTY: ${LOG_PRETTY:-false}
+    ports:
+      - "50052:50052"
+      - "8082:8082"
+    depends_on:
+      app-events:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8082/health/ready', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
