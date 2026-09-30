@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package tickettime.bookings.v1;
+
+service BookingsService {
+  rpc BookEvent(BookEventRequest) returns (BookEventResponse);
+}
+
+message BookEventRequest {
+  string customer_id = 1;
+  string event_id = 2;
+  string request_id = 3;
+}
+
+message BookEventResponse {
+  Ticket ticket = 1;
+}
+
+message Ticket {
+  string id = 1;
+  string event_id = 2;
+  string customer_id = 3;
+  string status = 4;
+}

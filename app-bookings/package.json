@@ -6,6 +6,8 @@
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/main.js",
+    "dev": "npm run build && node --inspect=0.0.0.0:9230 --enable-source-maps dist/main.js",
+    "smoke": "npm run build && (cd ../app-events && npm run build) && node smoke.mjs",
     "test": "npm run build && node --test dist/*.test.js"
   },
   "keywords": [],

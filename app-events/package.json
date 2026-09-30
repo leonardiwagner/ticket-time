@@ -7,6 +7,7 @@
     "build": "tsc",
     "prestart": "npm run build",
     "start": "node dist/main.js",
+    "dev": "node --inspect=0.0.0.0:9229 --enable-source-maps dist/main.js",
     "test": "npm run build && node --test dist/*.test.js"
   },
   "keywords": [],

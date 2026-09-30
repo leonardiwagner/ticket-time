@@ -4,13 +4,16 @@ import { createInMemoryEventRepository } from "./repository/index.js";
 import { createLogger } from "./logging/logger.js";
 import { createEventsServer } from "./grpc/events-server.js";
 import { createEventCatalog } from "./grpc/event-catalog.js";
+import { createHealthServer } from "./health.js";
 
 const eventsAddress = process.env.EVENTS_GRPC_ADDRESS ?? "127.0.0.1:50051";
+const healthPort = Number(process.env.HEALTH_PORT ?? 8081);
 
 const logger = createLogger({ service: "app-events" });
 const eventRepository = createInMemoryEventRepository();
 const eventGenerator = createEventGenerator(eventRepository);
 const eventsServer = createEventsServer(createEventCatalog(eventRepository), logger);
+const healthServer = createHealthServer(healthPort, () => true);
 
 const start = async () => {
   await new Promise<void>((resolve, reject) => {
@@ -21,7 +24,7 @@ const start = async () => {
     );
   });
   eventGenerator.start();
-  logger.info({ address: eventsAddress, intervalMs: 10_000 }, "app-events started");
+  logger.info({ address: eventsAddress, healthPort, intervalMs: 10_000 }, "app-events started");
 };
 
 const shutdown = () => {
@@ -31,6 +34,7 @@ const shutdown = () => {
       logger.error({ err: error }, "app-events shutdown failed");
     }
   });
+  healthServer.close();
   logger.info("app-events stopped");
 };
 
