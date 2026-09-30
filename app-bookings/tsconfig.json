@@ -8,5 +8,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["*.test.ts", "grpc/**/*.ts", "logging/**/*.ts", "models/**/*.ts"]
+  "include": ["*.test.ts", "main.ts", "read-events.ts", "grpc/**/*.ts", "logging/**/*.ts", "models/**/*.ts"]
 }
