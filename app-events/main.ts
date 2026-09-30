@@ -5,6 +5,7 @@ import { createInMemoryEventRepository } from "./repository/index.js";
 import { createLogger } from "./logging/logger.js";
 import { createEventsServer } from "./grpc/events-server.js";
 import { createEventCatalog } from "./grpc/event-catalog.js";
+import { createKafkaOutboxPublisher } from "./messaging/outbox-publisher.js";
 import { createHealthServer } from "./health.js";
 
 const eventsAddress = process.env.EVENTS_GRPC_ADDRESS ?? "127.0.0.1:50051";
@@ -15,6 +16,8 @@ const eventRepository = createInMemoryEventRepository();
 const eventGenerator = createEventGenerator(eventRepository, loadArtists(), loadVenues());
 const eventsServer = createEventsServer(createEventCatalog(eventRepository), logger);
 const healthServer = createHealthServer(healthPort, () => true);
+const outboxPublisher = createKafkaOutboxPublisher((process.env.KAFKA_BOOTSTRAP_SERVERS ?? "127.0.0.1:9092").split(","), eventRepository, logger);
+let outboxTimer: NodeJS.Timeout | undefined;
 
 const start = async () => {
   await new Promise<void>((resolve, reject) => {
@@ -25,11 +28,15 @@ const start = async () => {
     );
   });
   eventGenerator.start();
+  void outboxPublisher.publishPending().catch((error) => logger.warn({ err: error }, "outbox publishing deferred"));
+  outboxTimer = setInterval(() => void outboxPublisher.publishPending().catch((error) => logger.warn({ err: error }, "outbox publishing failed")), 1_000);
   logger.info({ address: eventsAddress, healthPort, intervalMs: 10_000 }, "app-events started");
 };
 
 const shutdown = () => {
   eventGenerator.stop();
+  if (outboxTimer) clearInterval(outboxTimer);
+  void outboxPublisher.disconnect();
   eventsServer.tryShutdown((error) => {
     if (error) {
       logger.error({ err: error }, "app-events shutdown failed");

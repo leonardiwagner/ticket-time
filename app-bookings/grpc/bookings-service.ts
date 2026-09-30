@@ -17,7 +17,7 @@ const bookEventRequestSchema = z.object({
 });
 
 export interface TicketStore {
-  createTicket(input: Ticket & { reservationId: string }): Promise<Ticket>;
+  createTicket(input: Ticket & { ticketId: string }): Promise<Ticket>;
 }
 
 interface BookEventRequest {
@@ -51,17 +51,17 @@ export function createBookingsService(
 
       requestLogger.info({ eventId: request.data.eventId }, "gRPC request started");
       try {
-        const reservation = await events.reserveEvent(
+        const claim = await events.claimTicket(
           request.data.eventId,
           request.data.requestId,
           requestId,
         );
         const ticket = await tickets.createTicket({
-          id: crypto.randomUUID(),
-          eventId: reservation.eventId,
+          id: claim.ticketId,
+          eventId: claim.eventId,
           customerId: request.data.customerId,
           status: "confirmed",
-          reservationId: reservation.reservationId,
+          ticketId: claim.ticketId,
         });
         requestLogger.info({ eventId: ticket.eventId, ticketId: ticket.id }, "event booked");
         callback(null, { ticket });

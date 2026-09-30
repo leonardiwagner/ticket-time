@@ -27,10 +27,7 @@ test("reads and logs every confirmed event", async () => {
   const result = await readAndLogConfirmedEvents(
     {
       listConfirmedEvents: async () => events,
-      reserveEvent: async () => ({
-        reservationId: "reservation-1",
-        eventId: events[0].id,
-      }),
+      claimTicket: async () => ({ ticketId: "750e8400-e29b-41d4-a716-446655440000", eventId: events[0].id, status: "sold" }),
     },
     logger,
   );

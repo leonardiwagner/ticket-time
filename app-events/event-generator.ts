@@ -41,7 +41,7 @@ export function createEventGenerator(
       status: "confirmed",
     };
 
-    const savedEvent = repository.save(event);
+    const savedEvent = repository.createConfirmedEvent(event);
     logger.info(
       {
         eventId: savedEvent.id,
